@@ -1,11 +1,5 @@
-import { Module } from '@nestjs/common';
-import { ProductsService } from './products.service';
-import { ProductsController } from './products.controller';
-import { PrismaService } from '../prisma.service';
+// Deprecated frontend copy of backend product module.
+// The real backend implementation lives in src/products.
+// This placeholder prevents accidental imports from breaking the frontend build.
 
-@Module({
-  controllers: [ProductsController],
-  providers: [ProductsService, PrismaService],
-  exports: [ProductsService],
-})
-export class ProductsModule {}
+export {};
