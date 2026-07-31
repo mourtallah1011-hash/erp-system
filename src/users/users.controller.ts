@@ -1,21 +1,35 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
+// src/users/users.controller.ts
+import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { JwtAuthGuard } from '../jwt-auth.guard';
 
-@ApiTags('users')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) {}
 
-  @Roles('SUPER_ADMIN', 'ADMIN', 'MANAGER')
+  @Post()
+  create(@Body() body: any) {
+    return this.usersService.create(body);
+  }
+
   @Get()
-  findAll(@CurrentUser('companyId') companyId: string) {
-    return this.usersService.findAllByCompany(companyId);
+  findAll() {
+    return this.usersService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.usersService.findOne(Number(id));
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() body: any) {
+    return this.usersService.update(Number(id), body);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.usersService.remove(Number(id));
   }
 }

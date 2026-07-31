@@ -1,330 +1,164 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  LogOut, 
-  LayoutDashboard, 
-  Users, 
-  Package, 
-  ShoppingCart, 
-  Settings, 
-  AlertCircle, 
-  Mail, 
-  Lock, 
-  LogIn 
-} from 'lucide-react';
+// erp-frontend/src/App.jsx
+import React, { useEffect, useState } from 'react'
+import { api } from './api'
+import './App.css'
 
-export default function App() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [token, setToken] = useState(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  
-  const [products, setProducts] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
+function App(){
+  const [tab, setTab] = useState('dashboard')
+  const [users, setUsers] = useState([])
+  const [products, setProducts] = useState([])
+  const [sales, setSales] = useState([])
+  const [settings, setSettings] = useState(null)
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  useEffect(()=>{ if(localStorage.getItem('token')) loadAll(); }, [])
 
-    try {
-      const response = await fetch('http://localhost:3000/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+  async function loadAll(){
+    try{
+      const [u,p,s,sett] = await Promise.all([api.users(), api.products(), api.sales(), api.settings()])
+      setUsers(u); setProducts(p); setSales(s); setSettings(sett);
+    }catch(e){ console.error(e); }
+  }
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Identifiants incorrects');
-      }
-
-      setToken(data.accessToken || data.access_token || 'connected');
-    } catch (err) {
-      setError(err.message || 'Impossible de se connecter au serveur');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProducts = async () => {
-    setLoadingProducts(true);
-    try {
-      const response = await fetch('http://localhost:3000/api/v1/products', {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-      }
-    } catch (err) {
-      console.error('Erreur lors du chargement des produits:', err);
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
-
-  useEffect(() => {
-    if (token && activeTab === 'products') {
-      fetchProducts();
-    }
-  }, [activeTab, token]);
-
-  if (!token) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h1 style={styles.title}>ERP System</h1>
-          <p style={styles.subtitle}>Connexion à votre espace entreprise</p>
-
-          <form onSubmit={handleLogin} style={styles.form}>
-            {error && (
-              <div style={styles.errorBox}>
-                <AlertCircle color="#ef4444" size={20} />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div style={styles.inputGroup}>
-              <Mail size={20} color="#6b7280" />
-              <input
-                type="email"
-                placeholder="Adresse Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={styles.input}
-              />
-            </div>
-
-            <div style={styles.inputGroup}>
-              <Lock size={20} color="#6b7280" />
-              <input
-                type="password"
-                placeholder="Mot de passe"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={styles.input}
-              />
-            </div>
-
-            <button type="submit" disabled={loading} style={styles.button}>
-              <LogIn size={20} />
-              {loading ? 'Connexion...' : 'Se connecter'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
+  // quick login helper for demo: fetch token from backend not implemented; we'll store demo token placeholder
+  function demoLogin(){
+    // For testing, store a fake token signed with the same default secret 'CHANGE_ME' if backend doesn't enforce
+    localStorage.setItem('token', 'demo-token');
+    loadAll();
   }
 
   return (
-    <div style={styles.dashboardLayout}>
-      <aside style={styles.sidebar}>
-        <div style={styles.brand}>
-          <h2>ERP System</h2>
-        </div>
-
-        <nav style={styles.navMenu}>
-          <button 
-            style={activeTab === 'dashboard' ? styles.navItemActive : styles.navItem} 
-            onClick={() => setActiveTab('dashboard')}
-          >
-            <LayoutDashboard size={20} /> Tableau de bord
-          </button>
-          <button 
-            style={activeTab === 'users' ? styles.navItemActive : styles.navItem} 
-            onClick={() => setActiveTab('users')}
-          >
-            <Users size={20} /> Utilisateurs
-          </button>
-          <button 
-            style={activeTab === 'products' ? styles.navItemActive : styles.navItem} 
-            onClick={() => setActiveTab('products')}
-          >
-            <Package size={20} /> Stock & Produits
-          </button>
-          <button 
-            style={activeTab === 'sales' ? styles.navItemActive : styles.navItem} 
-            onClick={() => setActiveTab('sales')}
-          >
-            <ShoppingCart size={20} /> Ventes
-          </button>
-          <button 
-            style={activeTab === 'settings' ? styles.navItemActive : styles.navItem} 
-            onClick={() => setActiveTab('settings')}
-          >
-            <Settings size={20} /> Paramètres
-          </button>
+    <div className="app">
+      <header>
+        <h1>ERP Dashboard</h1>
+        <nav>
+          <button onClick={()=>setTab('dashboard')}>Dashboard</button>
+          <button onClick={()=>setTab('products')}>Produits</button>
+          <button onClick={()=>setTab('users')}>Utilisateurs</button>
+          <button onClick={()=>setTab('sales')}>Ventes</button>
+          <button onClick={()=>setTab('settings')}>Paramètres</button>
+          <button onClick={demoLogin}>Demo Login</button>
         </nav>
-
-        <button style={styles.logoutButton} onClick={() => setToken(null)}>
-          <LogOut size={20} /> Déconnexion
-        </button>
-      </aside>
-
-      <main style={styles.mainContent}>
-        <header style={styles.header}>
-          <h3>Espace de Gestion</h3>
-          <div style={styles.userInfo}>
-            <span>Connecté en tant que : <b>{email}</b></span>
-          </div>
-        </header>
-
-        <section style={styles.contentBody}>
-          {activeTab === 'dashboard' && (
-            <div>
-              <h2>Vue d'ensemble</h2>
-              <div style={styles.statsGrid}>
-                <div style={styles.statCard}>
-                  <h4>Ventes du mois</h4>
-                  <p style={styles.statNumber}>12 450 €</p>
-                </div>
-                <div style={styles.statCard}>
-                  <h4>Nouveaux Clients</h4>
-                  <p style={styles.statNumber}>+24</p>
-                </div>
-                <div style={styles.statCard}>
-                  <h4>Commandes en cours</h4>
-                  <p style={styles.statNumber}>8</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'users' && (
-            <div>
-              <h2>Gestion des Utilisateurs</h2>
-              <p>Module de gestion des accès et rôles des employés.</p>
-            </div>
-          )}
-
-          {activeTab === 'products' && (
-            <div>
-              <div style={styles.stockHeader}>
-                <div>
-                  <h2 style={styles.noMargin}>Stock & Inventaire</h2>
-                  <p style={styles.stockSubtitle}>Consultez et gérez l'état de votre stock d'articles.</p>
-                </div>
-                <button onClick={fetchProducts} style={styles.refreshButton}>
-                  Rafraîchir
-                </button>
-              </div>
-
-              <div style={styles.tableCard}>
-                {loadingProducts ? (
-                  <p style={styles.loadingText}>Chargement des produits...</p>
-                ) : (
-                  <table style={styles.table}>
-                    <thead>
-                      <tr style={styles.tableHeaderRow}>
-                        <th style={styles.tableHeaderCell}>Nom du Produit</th>
-                        <th style={styles.tableHeaderCell}>Prix Unitaire</th>
-                        <th style={styles.tableHeaderCell}>Coût</th>
-                        <th style={styles.tableHeaderCell}>SKU</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {products.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} style={styles.emptyCell}>
-                            Aucun produit disponible dans la base.
-                          </td>
-                        </tr>
-                      ) : (
-                        products.map((item, index) => (
-                          <tr key={item.id || index} style={styles.tableRow}>
-                            <td style={styles.tableCell}><b>{item.name}</b></td>
-                            <td style={styles.tableCell}>{item.unitPrice ?? 0} CFA</td>
-                            <td style={styles.tableCell}>{item.costPrice ?? 0} CFA</td>
-                            <td style={styles.tableCell}>{item.sku || '-'}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'sales' && (
-            <div>
-              <h2>Historique des Ventes</h2>
-              <p>Liste des factures et transactions effectuées.</p>
-            </div>
-          )}
-
-          {activeTab === 'settings' && (
-            <div>
-              <h2>Paramètres du Système</h2>
-              <p>Configuration générale de la plateforme ERP.</p>
-            </div>
-          )}
-        </section>
+      </header>
+      <main>
+        {tab==='dashboard' && <Dashboard products={products} sales={sales} />}
+        {tab==='products' && <Products products={products} onRefresh={loadAll} />}
+        {tab==='users' && <Users users={users} onRefresh={loadAll} />}
+        {tab==='sales' && <Sales products={products} sales={sales} onRefresh={loadAll} />}
+        {tab==='settings' && <Settings settings={settings} onRefresh={loadAll} />}
       </main>
     </div>
-  );
+  )
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#0f172a',
-    color: '#f8fafc',
-    fontFamily: 'Segoe UI, sans-serif',
-  },
-  card: {
-    backgroundColor: '#1e293b',
-    padding: '2.5rem',
-    borderRadius: '12px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-    width: '100%',
-    maxWidth: '400px',
-    textAlign: 'center',
-  },
-  title: { margin: 0, fontSize: '1.8rem', color: '#38bdf8' },
-  subtitle: { color: '#94a3b8', fontSize: '0.9rem', marginBottom: '2rem' },
-  form: { display: 'flex', flexDirection: 'column', gap: '1.2rem' },
-  inputGroup: { display: 'flex', alignItems: 'center', backgroundColor: '#0f172a', padding: '0.8rem', borderRadius: '8px', border: '1px solid #334155', gap: '0.8rem' },
-  input: { background: 'none', border: 'none', outline: 'none', color: '#fff', width: '100%' },
-  button: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
-  errorBox: { display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.8rem', borderRadius: '8px', fontSize: '0.85rem' },
-  
-  dashboardLayout: { display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', fontFamily: 'Segoe UI, sans-serif' },
-  sidebar: { width: '250px', backgroundColor: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', padding: '1.5rem' },
-  brand: { marginBottom: '2rem', color: '#38bdf8' },
-  navMenu: { display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 },
-  navItem: { display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', backgroundColor: 'transparent', color: '#94a3b8', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '0.95rem' },
-  navItemActive: { display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', backgroundColor: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '0.95rem', fontWeight: 'bold' },
-  logoutButton: { display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', cursor: 'pointer', marginTop: 'auto' },
-  mainContent: { flex: 1, display: 'flex', flexDirection: 'column' },
-  header: { height: '60px', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2rem', backgroundColor: '#1e293b' },
-  userInfo: { fontSize: '0.9rem', color: '#94a3b8' },
-  contentBody: { padding: '2rem', flex: 1 },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginTop: '1.5rem' },
-  statCard: { backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '10px', border: '1px solid #334155' },
-  statNumber: { fontSize: '1.8rem', fontWeight: 'bold', color: '#38bdf8', margin: '0.5rem 0 0 0' },
+function Dashboard({products, sales}){
+  const total = sales.reduce((s,a)=>s+(a.total||0),0);
+  const tx = sales.length;
+  const lowStock = products.filter(p=>p.stock<20).length;
+  return (
+    <div>
+      <h2>Tableau de bord</h2>
+      <p>Total ventes: {total} CFA</p>
+      <p>Transactions: {tx}</p>
+      <p>Produits en stock faible: {lowStock}</p>
+    </div>
+  )
+}
 
-  stockHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
-  noMargin: { margin: 0 },
-  stockSubtitle: { color: '#94a3b8', margin: '0.2rem 0 0 0' },
-  refreshButton: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
-  loadingText: { color: '#94a3b8', textAlign: 'center', padding: '1rem' },
-  emptyCell: { textAlign: 'center', padding: '2rem', color: '#94a3b8' },
-  tableCard: { backgroundColor: '#1e293b', borderRadius: '10px', border: '1px solid #334155', overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
-  tableHeaderRow: { backgroundColor: '#0f172a', borderBottom: '1px solid #334155' },
-  tableHeaderCell: { padding: '1rem', color: '#38bdf8', fontSize: '0.9rem', fontWeight: 'bold' },
-  tableRow: { borderBottom: '1px solid #334155' },
-  tableCell: { padding: '1rem', color: '#f8fafc', fontSize: '0.95rem' }
-};
+function Products({products, onRefresh}){
+  const [form, setForm] = useState({name:'',sku:'',price:0,cost:0,stock:0})
+  async function add(){ try{ await api.createProduct(form); onRefresh(); setForm({name:'',sku:'',price:0,cost:0,stock:0}) }catch(e){alert(e)} }
+  return (
+    <div>
+      <h2>Produits</h2>
+      <table>
+        <thead><tr><th>Nom</th><th>SKU</th><th>Prix</th><th>Coût</th><th>Stock</th></tr></thead>
+        <tbody>
+          {products.map(p=> <tr key={p.id}><td>{p.name}</td><td>{p.sku}</td><td>{p.price}</td><td>{p.cost}</td><td>{p.stock}</td></tr>)}
+        </tbody>
+      </table>
+      <h3>Ajouter</h3>
+      <div className="form">
+        <input placeholder="Nom" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} />
+        <input placeholder="SKU" value={form.sku} onChange={e=>setForm({...form,sku:e.target.value})} />
+        <input placeholder="Prix" type="number" value={form.price} onChange={e=>setForm({...form,price:Number(e.target.value)})} />
+        <input placeholder="Coût" type="number" value={form.cost} onChange={e=>setForm({...form,cost:Number(e.target.value)})} />
+        <input placeholder="Stock" type="number" value={form.stock} onChange={e=>setForm({...form,stock:Number(e.target.value)})} />
+        <button onClick={add}>Ajouter</button>
+      </div>
+    </div>
+  )
+}
+
+function Users({users, onRefresh}){
+  const [form, setForm] = useState({email:'',password:'',name:'',role:'CASHIER'})
+  async function add(){ try{ await api.createUser(form); onRefresh(); setForm({email:'',password:'',name:'',role:'CASHIER'}) }catch(e){alert(e)} }
+  return (
+    <div>
+      <h2>Utilisateurs</h2>
+      <table>
+        <thead><tr><th>Email</th><th>Nom</th><th>Role</th></tr></thead>
+        <tbody>
+          {users.map(u=> <tr key={u.id}><td>{u.email}</td><td>{u.name}</td><td><span className={`badge ${u.role}`}>{u.role}</span></td></tr>)}
+        </tbody>
+      </table>
+      <h3>Ajouter</h3>
+      <div className="form">
+        <input placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} />
+        <input placeholder="Nom" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} />
+        <input placeholder="Mot de passe" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} />
+        <select value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>
+          <option>ADMIN</option>
+          <option>MANAGER</option>
+          <option>CASHIER</option>
+        </select>
+        <button onClick={add}>Ajouter</button>
+      </div>
+    </div>
+  )
+}
+
+function Sales({products, sales, onRefresh}){
+  const [cart, setCart] = useState([])
+  function addToCart(p){
+    const idx = cart.findIndex(c=>c.productId===p.id)
+    if(idx>=0){ const c = [...cart]; c[idx].quantity++; setCart(c); }
+    else setCart([...cart, {productId:p.id, sku:p.sku, quantity:1}])
+  }
+  async function checkout(){ try{ await api.createSale({ items: cart }); setCart([]); onRefresh(); }catch(e){alert(e)} }
+  return (
+    <div>
+      <h2>Prise de commande</h2>
+      <div className="products">
+        {products.map(p=> <div key={p.id} className="card"><h4>{p.name}</h4><p>{p.price} CFA</p><p>Stock: {p.stock}</p><button onClick={()=>addToCart(p)}>Ajouter</button></div>)}
+      </div>
+      <h3>Panier</h3>
+      <ul>{cart.map(c=> <li key={c.productId}>{c.sku} x {c.quantity}</li>)}</ul>
+      <button onClick={checkout}>Valider</button>
+
+      <h3>Historique</h3>
+      <table>
+        <thead><tr><th>ID</th><th>Utilisateur</th><th>Total</th><th>Date</th></tr></thead>
+        <tbody>
+          {sales.map(s=> <tr key={s.id}><td>{s.id}</td><td>{s.user?.email}</td><td>{s.total}</td><td>{new Date(s.createdAt).toLocaleString()}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function Settings({settings, onRefresh}){
+  const [form, setForm] = useState(settings||{companyName:'',contact:'',address:''})
+  useEffect(()=>{ setForm(settings||{companyName:'',contact:'',address:''}) }, [settings])
+  async function save(){ try{ await api.updateSettings(form); onRefresh(); alert('Saved') }catch(e){alert(e)} }
+  return (
+    <div>
+      <h2>Paramètres</h2>
+      <input placeholder="Nom entreprise" value={form?.companyName||''} onChange={e=>setForm({...form,companyName:e.target.value})} />
+      <input placeholder="Contact" value={form?.contact||''} onChange={e=>setForm({...form,contact:e.target.value})} />
+      <input placeholder="Adresse" value={form?.address||''} onChange={e=>setForm({...form,address:e.target.value})} />
+      <button onClick={save}>Enregistrer</button>
+    </div>
+  )
+}
+
+export default App
