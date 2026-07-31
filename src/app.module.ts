@@ -9,7 +9,12 @@ import { ProductsModule } from './products/products.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot({ ttl: 60, limit: 100 }), // limite globale par défaut (ttl en secondes)
+    ThrottlerModule.forRoot([
+  {
+    ttl: 60000,
+    limit: 100,
+  },
+]),
     AuthModule,
     UsersModule,
     ProductsModule,

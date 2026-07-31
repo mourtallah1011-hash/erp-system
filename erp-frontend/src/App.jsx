@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LogOut, 
   LayoutDashboard, 
@@ -6,7 +6,6 @@ import {
   Package, 
   ShoppingCart, 
   Settings, 
-  CheckCircle2, 
   AlertCircle, 
   Mail, 
   Lock, 
@@ -16,12 +15,15 @@ import {
 export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -40,14 +42,39 @@ export default function App() {
       }
 
       setToken(data.accessToken || data.access_token || 'connected');
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message || 'Impossible de se connecter au serveur');
     } finally {
       setLoading(false);
     }
   };
 
-  // --- ECRAN DE CONNEXION ---
+  const fetchProducts = async () => {
+    setLoadingProducts(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/v1/products', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data);
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des produits:', err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token && activeTab === 'products') {
+      fetchProducts();
+    }
+  }, [activeTab, token]);
+
   if (!token) {
     return (
       <div style={styles.container}>
@@ -97,10 +124,8 @@ export default function App() {
     );
   }
 
-  // --- TABLEAU DE BORD (INTERIEUR DE L'ERP) ---
   return (
     <div style={styles.dashboardLayout}>
-      {/* Barre de navigation latérale */}
       <aside style={styles.sidebar}>
         <div style={styles.brand}>
           <h2>ERP System</h2>
@@ -144,7 +169,6 @@ export default function App() {
         </button>
       </aside>
 
-      {/* Contenu principal */}
       <main style={styles.mainContent}>
         <header style={styles.header}>
           <h3>Espace de Gestion</h3>
@@ -183,8 +207,50 @@ export default function App() {
 
           {activeTab === 'products' && (
             <div>
-              <h2>Stock & Inventaire</h2>
-              <p>Consultez et gérez l'état de votre stock d'articles.</p>
+              <div style={styles.stockHeader}>
+                <div>
+                  <h2 style={styles.noMargin}>Stock & Inventaire</h2>
+                  <p style={styles.stockSubtitle}>Consultez et gérez l'état de votre stock d'articles.</p>
+                </div>
+                <button onClick={fetchProducts} style={styles.refreshButton}>
+                  Rafraîchir
+                </button>
+              </div>
+
+              <div style={styles.tableCard}>
+                {loadingProducts ? (
+                  <p style={styles.loadingText}>Chargement des produits...</p>
+                ) : (
+                  <table style={styles.table}>
+                    <thead>
+                      <tr style={styles.tableHeaderRow}>
+                        <th style={styles.tableHeaderCell}>Nom du Produit</th>
+                        <th style={styles.tableHeaderCell}>Prix Unitaire</th>
+                        <th style={styles.tableHeaderCell}>Coût</th>
+                        <th style={styles.tableHeaderCell}>SKU</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {products.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} style={styles.emptyCell}>
+                            Aucun produit disponible dans la base.
+                          </td>
+                        </tr>
+                      ) : (
+                        products.map((item, index) => (
+                          <tr key={item.id || index} style={styles.tableRow}>
+                            <td style={styles.tableCell}><b>{item.name}</b></td>
+                            <td style={styles.tableCell}>{item.unitPrice ?? 0} CFA</td>
+                            <td style={styles.tableCell}>{item.costPrice ?? 0} CFA</td>
+                            <td style={styles.tableCell}>{item.sku || '-'}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           )}
 
@@ -207,8 +273,7 @@ export default function App() {
   );
 }
 
-// --- STYLES EN LIGNE ---
-const styles: { [key: string]: React.CSSProperties } = {
+const styles = {
   container: {
     display: 'flex',
     justifyContent: 'center',
@@ -235,7 +300,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   button: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
   errorBox: { display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.8rem', borderRadius: '8px', fontSize: '0.85rem' },
   
-  /* Dashboard Layout */
   dashboardLayout: { display: 'flex', minHeight: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', fontFamily: 'Segoe UI, sans-serif' },
   sidebar: { width: '250px', backgroundColor: '#1e293b', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', padding: '1.5rem' },
   brand: { marginBottom: '2rem', color: '#38bdf8' },
@@ -249,5 +313,18 @@ const styles: { [key: string]: React.CSSProperties } = {
   contentBody: { padding: '2rem', flex: 1 },
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginTop: '1.5rem' },
   statCard: { backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '10px', border: '1px solid #334155' },
-  statNumber: { fontSize: '1.8rem', fontWeight: 'bold', color: '#38bdf8', margin: '0.5rem 0 0 0' }
+  statNumber: { fontSize: '1.8rem', fontWeight: 'bold', color: '#38bdf8', margin: '0.5rem 0 0 0' },
+
+  stockHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
+  noMargin: { margin: 0 },
+  stockSubtitle: { color: '#94a3b8', margin: '0.2rem 0 0 0' },
+  refreshButton: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' },
+  loadingText: { color: '#94a3b8', textAlign: 'center', padding: '1rem' },
+  emptyCell: { textAlign: 'center', padding: '2rem', color: '#94a3b8' },
+  tableCard: { backgroundColor: '#1e293b', borderRadius: '10px', border: '1px solid #334155', overflow: 'hidden' },
+  table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
+  tableHeaderRow: { backgroundColor: '#0f172a', borderBottom: '1px solid #334155' },
+  tableHeaderCell: { padding: '1rem', color: '#38bdf8', fontSize: '0.9rem', fontWeight: 'bold' },
+  tableRow: { borderBottom: '1px solid #334155' },
+  tableCell: { padding: '1rem', color: '#f8fafc', fontSize: '0.95rem' }
 };
